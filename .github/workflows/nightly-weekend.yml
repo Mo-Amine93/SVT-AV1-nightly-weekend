@@ -1,17 +1,12 @@
-# SVT-AV1 nightly and weekend tests on the supermicro self-hosted runners.
+# SVT-AV1 nightly tests on the self-hosted runners (the weekend run is weekend.yml, in lanes).
 # Translated from the GitLab CI (aom-testing ci-build-testing 0fc9092, .gitlab/workflows/weekend-testing) by
 # make_github_workflow.py: same jobs, matrix, machine split, Cleanup and PyFeaturesControl command lines.
-# Started by hand only: Actions -> SVT-AV1 nightly and weekend tests -> Run workflow.
-name: SVT-AV1 nightly and weekend tests
+# Started by hand only: Actions -> SVT-AV1 nightly tests -> Run workflow.
+name: SVT-AV1 nightly tests
 
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: nightly or weekend preset set (PyFeaturesControl -m 0 / -m 1)
-        type: choice
-        options: [nightly, weekend]
-        default: nightly
       ref:
         description: AOMediaCodec/SVT-AV1 branch, tag or commit to test
         default: main
@@ -26,13 +21,13 @@ on:
 permissions:
   contents: read
 
-# one run at a time: Cleanup deletes the bitstreams of every run on the machine
+# one run at a time, nightly, weekend or quick check: Cleanup deletes the bitstreams of every run on the machine
 concurrency:
   group: nightly-weekend
   cancel-in-progress: false
 
 env:
-  WEEKEND: ${{ inputs.mode == 'weekend' && '1' || '0' }}
+  WEEKEND: '0'
   SVT_REF: ${{ inputs.pr != '' && format('refs/pull/{0}/head', inputs.pr) || inputs.ref }}
 
 jobs:
