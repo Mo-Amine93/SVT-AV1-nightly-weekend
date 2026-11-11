@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        machine: [Ubuntu10, Ubuntu11, Ubuntu12, Ubuntu13, Ubuntu14]
+        machine: [Ubuntu10, Ubuntu11, Ubuntu12, Ubuntu14]
     steps:
       - name: Cleanup
         run: |
@@ -267,7 +267,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu11]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -329,7 +329,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu11]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -453,7 +453,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -488,7 +488,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -562,7 +562,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, features-ubuntu10, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -599,7 +599,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu11]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -625,7 +625,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -651,7 +651,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu11]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -678,7 +678,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu12]
+    runs-on: [self-hosted, Ubuntu10]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -706,7 +706,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu11]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -734,7 +734,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu10]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -766,7 +766,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -809,7 +809,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -916,7 +916,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu12]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -946,7 +946,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu12]
+    runs-on: [self-hosted, Ubuntu10]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -980,7 +980,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu10]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -1019,7 +1019,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu12]
+    runs-on: [self-hosted, Ubuntu10]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -1049,7 +1049,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build, cleanup, features-ubuntu11]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu13]
+    runs-on: [self-hosted, Ubuntu14]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -1077,7 +1077,7 @@ jobs:
     name: avx2 comparison Ubuntu11
     needs: [build, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     env:
       test: avx2_comparison
@@ -1097,7 +1097,7 @@ jobs:
   avx512-comparison-ubuntu11:
     name: avx512 comparison Ubuntu11
     needs: [build-avx512, avx2-comparison-ubuntu11, cleanup]
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     env:
       test: avx512_comparison
@@ -1117,7 +1117,7 @@ jobs:
   sse42-comparison-ubuntu11:
     name: sse42 comparison Ubuntu11
     needs: [build, avx2-comparison-ubuntu11, cleanup]
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     env:
       test: sse4_2_comparison
@@ -1137,7 +1137,7 @@ jobs:
   c-comparison-ubuntu11:
     name: c comparison Ubuntu11
     needs: [build, avx2-comparison-ubuntu11, cleanup]
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     env:
       test: c_comparison
@@ -1158,7 +1158,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build-debug, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu12]
+    runs-on: [self-hosted, Ubuntu10]
     timeout-minutes: 4320
     strategy:
       fail-fast: false
@@ -1219,7 +1219,7 @@ jobs:
     name: ${{ matrix.label }}
     needs: [build-debug, cleanup]
     if: ${{ !cancelled() }}
-    runs-on: [self-hosted, Ubuntu14]
+    runs-on: [self-hosted, Ubuntu12]
     timeout-minutes: 4320
     strategy:
       fail-fast: false

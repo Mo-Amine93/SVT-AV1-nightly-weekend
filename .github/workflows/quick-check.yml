@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       machine:
-        description: supermicro to check (Ubuntu10-14 = supermicro1-5)
+        description: supermicro to check (Ubuntu10,11,12,14 = supermicro1,2,3,5; supermicro4 not used)
         type: choice
-        options: [Ubuntu10, Ubuntu11, Ubuntu12, Ubuntu13, Ubuntu14]
+        options: [Ubuntu10, Ubuntu11, Ubuntu12, Ubuntu14]
         default: Ubuntu10
       mac:
         description: also check jimmy (R2R-Macos1)
