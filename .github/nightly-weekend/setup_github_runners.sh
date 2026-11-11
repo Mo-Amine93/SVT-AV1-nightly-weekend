@@ -3,14 +3,14 @@
 # (4 copies = the 4 jobs at once the GitLab runner ran with concurrent = 4). They run as gitlab-runner, like the
 # GitLab runner, so the jobs keep their access to /home/CI_Script, the clips and /dev/shm/bitstreams.
 #
-#   sudo bash setup_github_runners.sh Ubuntu10      # supermicro1 = Ubuntu10, 2 = Ubuntu11, 3 = Ubuntu12, 4 = Ubuntu13
+#   sudo bash setup_github_runners.sh Ubuntu10      # supermicro1 = Ubuntu10, 2 = Ubuntu11, 3 = Ubuntu12, 4 = Ubuntu13, 5 = Ubuntu14
 #
 # It asks for the registration token: repo Settings -> Actions -> Runners -> New self-hosted runner
-# (the token after --token on that page; it works for 1 hour and for all 4 machines).
+# (the token after --token on that page; it works for 1 hour and for all the machines).
 set -euo pipefail
 
 LABEL=${1:-}
-case "$LABEL" in Ubuntu10|Ubuntu11|Ubuntu12|Ubuntu13) ;; *) echo "usage: sudo bash $0 Ubuntu10|Ubuntu11|Ubuntu12|Ubuntu13"; exit 1;; esac
+case "$LABEL" in Ubuntu10|Ubuntu11|Ubuntu12|Ubuntu13|Ubuntu14) ;; *) echo "usage: sudo bash $0 Ubuntu10|Ubuntu11|Ubuntu12|Ubuntu13|Ubuntu14"; exit 1;; esac
 [ "$(id -u)" = 0 ] || { echo "run it with sudo"; exit 1; }
 
 REPO_URL=https://github.com/Mo-Amine93/SVT-AV1-nightly-weekend
