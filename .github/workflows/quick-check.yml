@@ -1,0 +1,218 @@
+# Quick check of the self-hosted runners: the real Cleanup and builds of nightly-weekend.yml, then 4 short nightly
+# tests (2 debug, 2 release) on one chosen machine and 1 Mac test on jimmy. Made by make_quick_check.py.
+name: Quick check
+
+on:
+  workflow_dispatch:
+    inputs:
+      machine:
+        description: supermicro to check (Ubuntu10-14 = supermicro1-5)
+        type: choice
+        options: [Ubuntu10, Ubuntu11, Ubuntu12, Ubuntu13, Ubuntu14]
+        default: Ubuntu10
+      mac:
+        description: also check jimmy (R2R-Macos1)
+        type: boolean
+        default: true
+      ref:
+        description: AOMediaCodec/SVT-AV1 branch, tag or commit to test
+        default: main
+
+permissions:
+  contents: read
+
+# shares the group with the nightly/weekend workflow, so the two never run at the same time
+concurrency:
+  group: nightly-weekend
+  cancel-in-progress: false
+
+env:
+  WEEKEND: '0'
+  SVT_REF: ${{ inputs.ref }}
+
+jobs:
+  cleanup:
+    name: Cleanup (${{ matrix.machine }})
+    runs-on: [self-hosted, '${{ matrix.machine }}']
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: ['${{ inputs.machine }}']
+    steps:
+      - name: Cleanup
+        run: |
+          if pgrep -f "[P]yFeaturesControl.py" > /dev/null; then echo "A PyFeaturesControl run is still active on this machine, not deleting its bitstreams"; exit 1; fi
+          rm -rf /home/Nightly_Script/bitstreams/
+          rm -rf /home/Weekend_Script/bitstreams/
+          rm -rf /home/CI_Script/bitstreams/
+          rm -rf /dev/shm/bitstreams/*
+          rm -rf /home/inteladmin/stream/weekend_run_set/8bit/random_res
+          find /home/gitlab-runner/builds -name "bitstreams" -type d -prune -exec rm -rf '{}' +
+          find /var/lib/gitlab-runner/builds -name "bitstreams" -type d -prune -exec rm -rf '{}' +
+          find /home/gitlab-runner/actions-runner-*/_work -name "bitstreams" -type d -prune -exec rm -rf '{}' +
+          mkdir /home/CI_Script/bitstreams/
+          mkdir -p /dev/shm/bitstreams/
+          curl "https://gitlab.com/api/v4/projects/21956795/repository/files/.gitlab%2Fworkflows%2Fweekend-testing%2FPyFeaturesControl%2Epy?ref=ci-build-testing" | cut -d '"' -f 40 | base64 -d > /home/CI_Script/PyFeaturesControl.py
+          curl "https://gitlab.com/api/v4/projects/21956795/repository/files/scripts%2Fdebug_testing%2FPyIssueTracker%2Epy?ref=master" | cut -d '"' -f 40 | base64 -d > /home/CI_Script/PyIssueTracker.py
+          chmod +x /home/CI_Script/PyFeaturesControl.py
+          chmod +x /home/CI_Script/PyIssueTracker.py
+
+  build:
+    name: Linux (18.04, static)
+    needs: [cleanup]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: AOMediaCodec/SVT-AV1
+          ref: ${{ env.SVT_REF }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Build in the aom-testing ubuntu1804 image (same image as the GitLab CI)
+        run: |
+          echo "Testing AOMediaCodec/SVT-AV1 $SVT_REF = $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          docker run --rm -v "$PWD:/src" -w /src \
+            -e CFLAGS="-Werror -Wshadow -pipe" \
+            -e CXXFLAGS="-Werror -Wshadow -pipe" \
+            -e LDFLAGS="-Werror -Wshadow -pipe -static -static-libgcc -static-libstdc++" \
+            registry.gitlab.com/aomediacodec/aom-testing/ubuntu1804 sh -ec '
+              git config --global --add safe.directory /src
+              cmake -B Build -DREPRODUCIBLE_BUILDS=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
+              cmake --build Build --config Release'
+          cp Bin/Release/SvtAv1EncApp Bin/Release/SvtAv1DecApp .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-static
+          path: |
+            SvtAv1EncApp
+            SvtAv1DecApp
+          retention-days: 30
+
+  build-debug:
+    name: Linux (18.04, static, debug)
+    needs: [cleanup]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: AOMediaCodec/SVT-AV1
+          ref: ${{ env.SVT_REF }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Build in the aom-testing ubuntu1804 image (same image as the GitLab CI)
+        run: |
+          echo "Testing AOMediaCodec/SVT-AV1 $SVT_REF = $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          docker run --rm -v "$PWD:/src" -w /src \
+            -e CFLAGS="-Werror -Wshadow -pipe" \
+            -e CXXFLAGS="-Werror -Wshadow -pipe" \
+            -e LDFLAGS="-Werror -Wshadow -pipe -static -static-libgcc -static-libstdc++" \
+            registry.gitlab.com/aomediacodec/aom-testing/ubuntu1804 sh -ec '
+              git config --global --add safe.directory /src
+              cmake -B Build -DREPRODUCIBLE_BUILDS=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
+              cmake --build Build --config Debug'
+          cp Bin/Debug/SvtAv1EncApp Bin/Debug/SvtAv1DecApp .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-static-debug
+          path: |
+            SvtAv1EncApp
+            SvtAv1DecApp
+          retention-days: 30
+
+  cleanup-mac:
+    name: Cleanup (mac)
+    if: ${{ inputs.mac }}
+    runs-on: [self-hosted, R2R-Macos1]
+    steps:
+      - name: Cleanup
+        run: |
+          rm -rf /Users/Nightly_Script/bitstreams || true
+          rm -rf /Users/Weekend_Script/bitstreams || true
+          rm -rf /Users/CI_Script/bitstreams || true
+          rm -rf /Users/inteladmin/stream/weekend_run_set/8bit/random_res || true
+          mkdir -p /Users/CI_Script/bitstreams
+          curl -sSLo /Users/CI_Script/PyFeaturesControl.py "https://gitlab.com/api/v4/projects/21956795/repository/files/.gitlab%2Fworkflows%2Fweekend-testing%2FPyFeaturesControl%2Epy/raw?ref=ci-build-testing"
+          curl -sSLo /Users/CI_Script/PyIssueTracker.py "https://gitlab.com/api/v4/projects/21956795/repository/files/scripts%2Fdebug_testing%2FPyIssueTracker%2Epy?ref=master"
+          chmod +x /Users/CI_Script/PyFeaturesControl.py /Users/CI_Script/PyIssueTracker.py
+
+  build-mac:
+    name: macOS (Release)
+    if: ${{ inputs.mac }}
+    needs: [cleanup-mac]
+    runs-on: [self-hosted, R2R-Macos1]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: AOMediaCodec/SVT-AV1
+          ref: ${{ env.SVT_REF }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Build
+        env:
+          CFLAGS: -Werror -Wshadow -pipe
+          CXXFLAGS: -Werror -Wshadow -pipe
+          LDFLAGS: -Werror -Wshadow -pipe
+        run: |
+          echo "Testing AOMediaCodec/SVT-AV1 $SVT_REF = $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          cmake --version
+          nasm -v || { echo "Install nasm on the Mac (brew install nasm)"; exit 1; }
+          cmake -B Build -DREPRODUCIBLE_BUILDS=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build Build --config Release
+          cp Bin/Release/SvtAv1EncApp Bin/Release/SvtAv1DecApp .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-release
+          path: |
+            SvtAv1EncApp
+            SvtAv1DecApp
+          retention-days: 30
+
+  linux-tests:
+    name: ${{ matrix.label }}
+    needs: [build, build-debug, cleanup]
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, '${{ inputs.machine }}']
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {label: "Features Ubuntu12 debug A: [1, irefresh_type_%s_test]", debug: 1, test: irefresh_type_%s_test}
+          - {label: "Features Ubuntu12 debug A: [1, RestorationFilter_%s_test]", debug: 1, test: RestorationFilter_%s_test}
+          - {label: "Features Ubuntu11 Part Three: [0, ForceKeyFrames_test]", debug: 0, test: ForceKeyFrames_test}
+          - {label: "Features Ubuntu11 Part Two: [0, tbr_abr_deviation_360p_VBR_test]", debug: 0, test: tbr_abr_deviation_360p_VBR_test}
+    env:
+      test: ${{ matrix.test }}
+      debug: ${{ matrix.debug }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.debug == 1 && 'linux-static-debug' || 'linux-static' }}
+      - name: Run the test
+        run: |
+          chmod +x SvtAv1EncApp SvtAv1DecApp
+          cp /home/CI_Script/PyFeaturesControl.py .
+          cp /home/CI_Script/scripts/yuv_library.py .
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+
+  mac-arm-still-image:
+    name: Mac arm_still_image
+    needs: [cleanup-mac, build-mac]
+    if: ${{ inputs.mac && !cancelled() }}
+    runs-on: [self-hosted, R2R-Macos1]
+    timeout-minutes: 180
+    env:
+      test: arm_still_image_test
+      debug: 0
+      cpu_use_divisor: 3
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-release
+      - name: Run the test
+        run: |
+          chmod +x SvtAv1EncApp SvtAv1DecApp
+          cp /Users/CI_Script/PyFeaturesControl.py . || true
+          test -f /Users/CI_Script/scripts/yuv_library.py && cp /Users/CI_Script/scripts/yuv_library.py . || true
+          which python2 && python2 -V
+          python2 PyFeaturesControl.py -t "$test" -d "${debug:-0}" -p "${special_param:-}" -m "${WEEKEND:-nightly}" --cpu_use_divisor "${cpu_use_divisor:-3}"
