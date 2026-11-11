@@ -47,8 +47,8 @@ jobs:
           rm -rf /home/CI_Script/bitstreams/
           rm -rf /dev/shm/bitstreams/*
           rm -rf /home/inteladmin/stream/weekend_run_set/8bit/random_res
-          find /home/gitlab-runner/builds -name "bitstreams" -type d -prune -exec rm -rf '{}' +
-          find /var/lib/gitlab-runner/builds -name "bitstreams" -type d -prune -exec rm -rf '{}' +
+          [ ! -d /home/gitlab-runner/builds ] || find /home/gitlab-runner/builds -name "bitstreams" -type d -prune -exec rm -rf '{}' +
+          [ ! -d /var/lib/gitlab-runner/builds ] || find /var/lib/gitlab-runner/builds -name "bitstreams" -type d -prune -exec rm -rf '{}' +
           find /home/gitlab-runner/actions-runner-*/_work -name "bitstreams" -type d -prune -exec rm -rf '{}' +
           mkdir /home/CI_Script/bitstreams/
           mkdir -p /dev/shm/bitstreams/
