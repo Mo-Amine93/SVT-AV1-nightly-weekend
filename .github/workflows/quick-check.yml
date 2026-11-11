@@ -1,5 +1,6 @@
-# Quick check of the self-hosted runners: the real Cleanup and builds of nightly-weekend.yml, then 4 short nightly
-# tests (2 debug, 2 release) on one chosen machine and 1 Mac test on jimmy. Made by make_quick_check.py.
+# Quick check of the self-hosted runners (~1 h): the real Cleanup and builds of nightly-weekend.yml, then 4 lanes like
+# weekend.yml on one chosen machine (R2R, Low Delay, Fast Decode, MR, debug, features, reference + Compare tests)
+# and the 3 Mac tests on jimmy. Made by make_quick_check.py.
 name: Quick check
 
 on:
@@ -21,7 +22,7 @@ on:
 permissions:
   contents: read
 
-# shares the group with the nightly/weekend workflow, so the two never run at the same time
+# shares the group with the nightly and weekend workflows, so they never run at the same time
 concurrency:
   group: nightly-weekend
   cancel-in-progress: false
@@ -170,33 +171,412 @@ jobs:
             SvtAv1DecApp
           retention-days: 30
 
-  linux-tests:
-    name: ${{ matrix.label }}
-    needs: [build, build-debug, cleanup]
+  lane-1:
+    name: Lane 1 (6 tests one after another, as in weekend.yml)
+    needs: [cleanup, build, build-debug]
     if: ${{ !cancelled() }}
     runs-on: [self-hosted, '${{ inputs.machine }}']
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {label: "Features Ubuntu12 debug A: [1, irefresh_type_%s_test]", debug: 1, test: irefresh_type_%s_test}
-          - {label: "Features Ubuntu12 debug A: [1, RestorationFilter_%s_test]", debug: 1, test: RestorationFilter_%s_test}
-          - {label: "Features Ubuntu11 Part Three: [0, ForceKeyFrames_test]", debug: 0, test: ForceKeyFrames_test}
-          - {label: "Features Ubuntu11 Part Two: [0, tbr_abr_deviation_360p_VBR_test]", debug: 0, test: tbr_abr_deviation_360p_VBR_test}
-    env:
-      test: ${{ matrix.test }}
-      debug: ${{ matrix.debug }}
+    timeout-minutes: 180
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ matrix.debug == 1 && 'linux-static-debug' || 'linux-static' }}
-      - name: Run the test
+          name: linux-static
+          path: bin/linux-static
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-static-debug
+          path: bin/linux-static-debug
+      - name: Get the controller scripts
         run: |
-          chmod +x SvtAv1EncApp
-          [ ! -f SvtAv1DecApp ] || chmod +x SvtAv1DecApp
           cp /home/CI_Script/PyFeaturesControl.py .
           cp /home/CI_Script/scripts/yuv_library.py .
+      - name: "R2R Ubuntu10 Low Delay: [0, 5, --pred-struct 1, CBR-1lp-1p-10bit_r2r_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: CBR-1lp-1p-10bit_r2r_test
+          debug: 0
+          cpu_use_divisor: 5
+          special_param: "--pred-struct 1"
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m 0 --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu12 debug A: [1, still_image_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: still_image_test
+          debug: 1
+        run: |
+          cp -f bin/linux-static-debug/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static-debug/SvtAv1DecApp ] || { cp -f bin/linux-static-debug/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu12 debug A: [1, SuperResQThres_%s_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: SuperResQThres_%s_test
+          debug: 1
+        run: |
+          cp -f bin/linux-static-debug/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static-debug/SvtAv1DecApp ] || { cp -f bin/linux-static-debug/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu12 debug A: [1, RateControl_%s_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: RateControl_%s_test
+          debug: 1
+        run: |
+          cp -f bin/linux-static-debug/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static-debug/SvtAv1DecApp ] || { cp -f bin/linux-static-debug/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu12 debug B: [1, scd_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: scd_test_%s
+          debug: 1
+        run: |
+          cp -f bin/linux-static-debug/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static-debug/SvtAv1DecApp ] || { cp -f bin/linux-static-debug/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu12 debug B: [1, MultiPass_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: MultiPass_test_%s
+          debug: 1
+        run: |
+          cp -f bin/linux-static-debug/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static-debug/SvtAv1DecApp ] || { cp -f bin/linux-static-debug/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+
+  lane-2:
+    name: Lane 2 (4 tests one after another, as in weekend.yml)
+    needs: [cleanup, build]
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, '${{ inputs.machine }}']
+    timeout-minutes: 180
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-static
+          path: bin/linux-static
+      - name: Get the controller scripts
+        run: |
+          cp /home/CI_Script/PyFeaturesControl.py .
+          cp /home/CI_Script/scripts/yuv_library.py .
+      - name: "R2R Ubuntu12 Fast Decode: [0, 5, --fast-decode 1, CBR-1lp-1p-10bit_r2r_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: CBR-1lp-1p-10bit_r2r_test
+          debug: 0
+          cpu_use_divisor: 5
+          special_param: "--fast-decode 1"
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m 0 --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu11 Part Three: [0, MetadataSignaling_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: MetadataSignaling_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Part Five: [0, rc_on_hang_check_HL4]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: rc_on_hang_check_HL4
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Part Three: [0, gop_64_Encoder_Hang_Issue1708]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: gop_64_Encoder_Hang_Issue1708
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+
+  lane-3:
+    name: Lane 3 (3 tests one after another, as in weekend.yml)
+    needs: [cleanup, build, build-debug]
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, '${{ inputs.machine }}']
+    timeout-minutes: 180
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-static
+          path: bin/linux-static
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-static-debug
+          path: bin/linux-static-debug
+      - name: Get the controller scripts
+        run: |
+          cp /home/CI_Script/PyFeaturesControl.py .
+          cp /home/CI_Script/scripts/yuv_library.py .
+      - name: "R2R Ubuntu13 MR: [0, 4, VBR-1lp-1p-10bit-MR_r2r_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 205
+        env:
+          test: VBR-1lp-1p-10bit-MR_r2r_test
+          debug: 0
+          cpu_use_divisor: 4
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "R2R Ubuntu13 MR: [0, 4, CBR-1lp-1p-10bit-MR_r2r_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 244
+        env:
+          test: CBR-1lp-1p-10bit-MR_r2r_test
+          debug: 0
+          cpu_use_divisor: 4
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu12 debug B: [1, FAIL_resize_mode_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_resize_mode_test_%s
+          debug: 1
+        run: |
+          cp -f bin/linux-static-debug/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static-debug/SvtAv1DecApp ] || { cp -f bin/linux-static-debug/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+
+  lane-4:
+    name: Lane 4 (20 tests one after another, as in weekend.yml)
+    needs: [cleanup, build]
+    if: ${{ !cancelled() }}
+    runs-on: [self-hosted, '${{ inputs.machine }}']
+    timeout-minutes: 180
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-static
+          path: bin/linux-static
+      - name: Get the controller scripts
+        run: |
+          cp /home/CI_Script/PyFeaturesControl.py .
+          cp /home/CI_Script/scripts/yuv_library.py .
+      - name: "Features Ubuntu11: [0, MBR_off_CRF_compare]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: MBR_off_CRF_compare
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu11: [0, skip_30_frames_compare_ref]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: skip_30_frames_compare_ref
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu11: [0, config_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: config_test
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10: [0, non-lp_comparison_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 143
+        env:
+          test: non-lp_comparison_test
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10: [0, recon_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 274
+        env:
+          test: recon_test
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu11 Compare: [0, MBR_on_CRF_compare]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: MBR_on_CRF_compare
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu11 Compare: [0, config_compare]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: config_compare
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu11 Compare: [0, skip_30_frames_compare]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: skip_30_frames_compare
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, recon_compare]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 215
+        env:
+          test: recon_compare
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, lp_comparison_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 185
+        env:
+          test: lp_comparison_test
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_BitstreamLevel_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_BitstreamLevel_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_BufferedInput_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_BufferedInput_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_ClientBufferSize_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_ClientBufferSize_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_ClientOptimalBufferSize_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_ClientOptimalBufferSize_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_Injector_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_Injector_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_MaxSectionPct_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_MaxSectionPct_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_MinQpAllowed_test_QP%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_MinQpAllowed_test_QP%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_skip_60_frames_test]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_skip_60_frames_test
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_QuantMatrix_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_QuantMatrix_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
+          python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
+      - name: "Features Ubuntu10 Compare: [0, FAIL_FastDecode_test_%s]"
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
+        env:
+          test: FAIL_FastDecode_test_%s
+          debug: 0
+        run: |
+          cp -f bin/linux-static/SvtAv1EncApp . && chmod +x SvtAv1EncApp
+          [ ! -f bin/linux-static/SvtAv1DecApp ] || { cp -f bin/linux-static/SvtAv1DecApp . && chmod +x SvtAv1DecApp; }
           python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
 
   mac-arm-still-image:
@@ -207,6 +587,52 @@ jobs:
     timeout-minutes: 180
     env:
       test: arm_still_image_test
+      debug: 0
+      cpu_use_divisor: 3
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-release
+      - name: Run the test
+        run: |
+          chmod +x SvtAv1EncApp
+          [ ! -f SvtAv1DecApp ] || chmod +x SvtAv1DecApp
+          cp /Users/CI_Script/PyFeaturesControl.py . || true
+          test -f /Users/CI_Script/scripts/yuv_library.py && cp /Users/CI_Script/scripts/yuv_library.py . || true
+          which python2 && python2 -V
+          python2 PyFeaturesControl.py -t "$test" -d "${debug:-0}" -p "${special_param:-}" -m "${WEEKEND:-nightly}" --cpu_use_divisor "${cpu_use_divisor:-3}"
+
+  mac-arm-rtc-test:
+    name: Mac arm_rtc_test
+    needs: [cleanup-mac, build-mac]
+    if: ${{ inputs.mac && !cancelled() }}
+    runs-on: [self-hosted, R2R-Macos1]
+    timeout-minutes: 180
+    env:
+      test: arm_rtc_test
+      debug: 0
+      cpu_use_divisor: 3
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-release
+      - name: Run the test
+        run: |
+          chmod +x SvtAv1EncApp
+          [ ! -f SvtAv1DecApp ] || chmod +x SvtAv1DecApp
+          cp /Users/CI_Script/PyFeaturesControl.py . || true
+          test -f /Users/CI_Script/scripts/yuv_library.py && cp /Users/CI_Script/scripts/yuv_library.py . || true
+          which python2 && python2 -V
+          python2 PyFeaturesControl.py -t "$test" -d "${debug:-0}" -p "${special_param:-}" -m "${WEEKEND:-nightly}" --cpu_use_divisor "${cpu_use_divisor:-3}"
+
+  mac-arm-rtc-r2r-test:
+    name: Mac arm_rtc_r2r_test
+    needs: [cleanup-mac, build-mac]
+    if: ${{ inputs.mac && !cancelled() }}
+    runs-on: [self-hosted, R2R-Macos1]
+    timeout-minutes: 180
+    env:
+      test: arm_rtc_r2r_test
       debug: 0
       cpu_use_divisor: 3
     steps:
