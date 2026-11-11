@@ -7,3 +7,4 @@ supermicro self-hosted runners. `main` is a plain copy of the SVT-AV1 code.
   Run workflow (mode nightly or weekend, SVT-AV1 ref or PR number).
 - `.github/nightly-weekend/setup_github_runners.sh`: installs the 4 runners of one machine
   (`sudo bash setup_github_runners.sh Ubuntu10`; Ubuntu11/12/13/14 on supermicro2/3/4/5).
+- `.github/nightly-weekend/setup_github_runner_mac.sh`: installs the Mac runner on jimmy (`sudo bash setup_github_runner_mac.sh`).
