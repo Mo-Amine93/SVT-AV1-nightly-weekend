@@ -68,18 +68,19 @@ jobs:
           ref: ${{ env.SVT_REF }}
           fetch-depth: 0
           fetch-tags: true
-      - name: Build in the aom-testing ubuntu1804 image (same image as the GitLab CI)
+      - name: Build with GCC 11 in the aom-testing ubuntu2004 image (as SVT-AV1's own GitLab Linux builds)
         run: |
           echo "Testing AOMediaCodec/SVT-AV1 $SVT_REF = $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
-          docker run --rm -v "$PWD:/src" -w /src \
+          docker run --rm -v "$PWD:/src" -w /src -e CC=gcc-11 -e CXX=g++-11 \
             -e CFLAGS="-Werror -Wshadow -pipe" \
             -e CXXFLAGS="-Werror -Wshadow -pipe" \
             -e LDFLAGS="-Werror -Wshadow -pipe -static -static-libgcc -static-libstdc++" \
-            registry.gitlab.com/aomediacodec/aom-testing/ubuntu1804 sh -ec '
+            registry.gitlab.com/aomediacodec/aom-testing/ubuntu2004 sh -ec '
               git config --global --add safe.directory /src
               cmake -B Build -DREPRODUCIBLE_BUILDS=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
               cmake --build Build --config Release'
-          cp Bin/Release/SvtAv1EncApp Bin/Release/SvtAv1DecApp .
+          cp Bin/Release/SvtAv1EncApp .
+          [ ! -f Bin/Release/SvtAv1DecApp ] || cp Bin/Release/SvtAv1DecApp .   # SVT-AV1 has no decoder app now
       - uses: actions/upload-artifact@v7
         with:
           name: linux-static
@@ -99,18 +100,19 @@ jobs:
           ref: ${{ env.SVT_REF }}
           fetch-depth: 0
           fetch-tags: true
-      - name: Build in the aom-testing ubuntu1804 image (same image as the GitLab CI)
+      - name: Build with GCC 11 in the aom-testing ubuntu2004 image (as SVT-AV1's own GitLab Linux builds)
         run: |
           echo "Testing AOMediaCodec/SVT-AV1 $SVT_REF = $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
-          docker run --rm -v "$PWD:/src" -w /src \
+          docker run --rm -v "$PWD:/src" -w /src -e CC=gcc-11 -e CXX=g++-11 \
             -e CFLAGS="-Werror -Wshadow -pipe" \
             -e CXXFLAGS="-Werror -Wshadow -pipe" \
             -e LDFLAGS="-Werror -Wshadow -pipe -static -static-libgcc -static-libstdc++" \
-            registry.gitlab.com/aomediacodec/aom-testing/ubuntu1804 sh -ec '
+            registry.gitlab.com/aomediacodec/aom-testing/ubuntu2004 sh -ec '
               git config --global --add safe.directory /src
               cmake -B Build -DREPRODUCIBLE_BUILDS=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
               cmake --build Build --config Debug'
-          cp Bin/Debug/SvtAv1EncApp Bin/Debug/SvtAv1DecApp .
+          cp Bin/Debug/SvtAv1EncApp .
+          [ ! -f Bin/Debug/SvtAv1DecApp ] || cp Bin/Debug/SvtAv1DecApp .   # SVT-AV1 has no decoder app now
       - uses: actions/upload-artifact@v7
         with:
           name: linux-static-debug
@@ -158,7 +160,8 @@ jobs:
           nasm -v || { echo "Install nasm on the Mac (brew install nasm)"; exit 1; }
           cmake -B Build -DREPRODUCIBLE_BUILDS=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
           cmake --build Build --config Release
-          cp Bin/Release/SvtAv1EncApp Bin/Release/SvtAv1DecApp .
+          cp Bin/Release/SvtAv1EncApp .
+          [ ! -f Bin/Release/SvtAv1DecApp ] || cp Bin/Release/SvtAv1DecApp .   # SVT-AV1 has no decoder app now
       - uses: actions/upload-artifact@v7
         with:
           name: macos-release
@@ -190,7 +193,8 @@ jobs:
           name: ${{ matrix.debug == 1 && 'linux-static-debug' || 'linux-static' }}
       - name: Run the test
         run: |
-          chmod +x SvtAv1EncApp SvtAv1DecApp
+          chmod +x SvtAv1EncApp
+          [ ! -f SvtAv1DecApp ] || chmod +x SvtAv1DecApp
           cp /home/CI_Script/PyFeaturesControl.py .
           cp /home/CI_Script/scripts/yuv_library.py .
           python2 PyFeaturesControl.py -t $test -d $debug -p "$special_param" -m $WEEKEND --cpu_use_divisor "$cpu_use_divisor"
@@ -211,7 +215,8 @@ jobs:
           name: macos-release
       - name: Run the test
         run: |
-          chmod +x SvtAv1EncApp SvtAv1DecApp
+          chmod +x SvtAv1EncApp
+          [ ! -f SvtAv1DecApp ] || chmod +x SvtAv1DecApp
           cp /Users/CI_Script/PyFeaturesControl.py . || true
           test -f /Users/CI_Script/scripts/yuv_library.py && cp /Users/CI_Script/scripts/yuv_library.py . || true
           which python2 && python2 -V
